@@ -15,6 +15,7 @@ const Header = ({ className = '' }: HeaderProps) => {
     { label: 'Home', href: '/homepage' },
     { label: 'About', href: '/about' },
     { label: 'Products', href: '/product-collection' },
+    { label: 'Mini Game', href: '/minigame' },
   ];
 
   const toggleMobileMenu = () => {
