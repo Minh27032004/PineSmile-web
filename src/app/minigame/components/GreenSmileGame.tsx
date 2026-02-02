@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import Phaser from 'phaser';
+import * as Phaser from 'phaser';
 
 // ==================== PHASER SCENES ====================
 
@@ -108,6 +108,29 @@ class MenuScene extends Phaser.Scene {
 
 // GameScene - Màn hình chơi game
 class GameScene extends Phaser.Scene {
+  // === KHAI BÁO BIẾN ĐỂ FIX LỖI BUILD TYPESCRIPT ===
+  player: any;
+  lanes: any[];
+  currentLane: number;
+  score: number;
+  lives: number;
+  items: any[];
+  gameSpeed: number;
+  baseSpeed: number;
+  combo: number;
+  isMoving: boolean;
+  swipeStart: { x: number, y: number } | null;
+  lastSpeedUpScore: number;
+  speedLevel: number;
+  
+  // Các biến UI
+  scoreText: any;
+  livesText: any;
+  speedLevelText: any;
+  comboText: any;
+  spawnTimer: any;
+  // ==================================================
+
   constructor() {
     super({ key: 'GameScene' });
     this.player = null;
@@ -257,16 +280,16 @@ class GameScene extends Phaser.Scene {
     this.comboText.setVisible(false);
 
     // Controls
-    this.input.keyboard.on('keydown-LEFT', () => this.moveLeft());
-    this.input.keyboard.on('keydown-RIGHT', () => this.moveRight());
-    this.input.keyboard.on('keydown-A', () => this.moveLeft());
-    this.input.keyboard.on('keydown-D', () => this.moveRight());
+    this.input.keyboard!.on('keydown-LEFT', () => this.moveLeft());
+    this.input.keyboard!.on('keydown-RIGHT', () => this.moveRight());
+    this.input.keyboard!.on('keydown-A', () => this.moveLeft());
+    this.input.keyboard!.on('keydown-D', () => this.moveRight());
 
-    this.input.on('pointerdown', (pointer) => {
+    this.input.on('pointerdown', (pointer: any) => {
       this.swipeStart = { x: pointer.x, y: pointer.y };
     });
 
-    this.input.on('pointerup', (pointer) => {
+    this.input.on('pointerup', (pointer: any) => {
       if (this.swipeStart) {
         const diffX = pointer.x - this.swipeStart.x;
         const diffY = Math.abs(pointer.y - this.swipeStart.y);
@@ -424,7 +447,7 @@ class GameScene extends Phaser.Scene {
     }
   }
 
-  collectItem(item) {
+  collectItem(item: any) {
     const type = item.getData('type');
     item.setData('collected', true);
 
@@ -460,7 +483,7 @@ class GameScene extends Phaser.Scene {
     });
   }
 
-  showEffect(x, y, text, color) {
+  showEffect(x: number, y: number, text: string, color: number) {
     const effect = this.add.text(x, y, text, {
       fontSize: '28px',
       fontFamily: 'Arial, sans-serif',
@@ -513,10 +536,10 @@ class GameScene extends Phaser.Scene {
 // ==================== REACT COMPONENT ====================
 
 const GreenSmileGame = () => {
-  const gameContainer = useRef(null);
-  const phaserGame = useRef(null);
+  const gameContainer = useRef<HTMLDivElement>(null);
+  const phaserGame = useRef<Phaser.Game | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [gameResult, setGameResult] = useState(null);
+  const [gameResult, setGameResult] = useState<{ score: number, timestamp: number } | null>(null);
   const [formData, setFormData] = useState({ name: '', phone: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
@@ -545,7 +568,7 @@ const GreenSmileGame = () => {
 
       phaserGame.current = new Phaser.Game(config);
 
-      const handleGameOver = (event) => {
+      const handleGameOver = (event: any) => {
         setGameResult({
           score: event.detail.score,
           timestamp: Date.now()
@@ -568,7 +591,7 @@ const GreenSmileGame = () => {
     };
   }, []);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
@@ -615,7 +638,7 @@ const GreenSmileGame = () => {
       
       // Restart MenuScene
       setTimeout(() => {
-        phaserGame.current.scene.start('MenuScene');
+        phaserGame.current?.scene.start('MenuScene');
       }, 100);
     }
   };
@@ -700,7 +723,7 @@ const GreenSmileGame = () => {
 };
 
 // Styles
-const styles = {
+const styles: { [key: string]: React.CSSProperties } = {
   wrapper: {
     position: 'relative',
     width: '100%',
