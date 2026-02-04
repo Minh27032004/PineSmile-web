@@ -3,20 +3,35 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as Phaser from 'phaser';
 
+// !!! THAY URL GOOGLE APPS SCRIPT CỦA BẠN VÀO ĐÂY !!!
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby2dSVdK74Bbk_PW2syDDMYTfPg-QfVEVw_ahob7XYIbYU1ldBKFprUf6RruGtrNvkoNA/exec';
+
 // ==================== PHASER SCENES ====================
 
-// MenuScene - Màn hình chào mừng
+// MenuScene - Màn hình chào mừng (Đã sửa để nhận Avatar)
 class MenuScene extends Phaser.Scene {
+  userAvatarBase64: string | null = null;
+
   constructor() {
     super({ key: 'MenuScene' });
   }
 
+  init(data: { avatar: string }) {
+    if (data && data.avatar) {
+      this.userAvatarBase64 = data.avatar;
+    }
+  }
+
   preload() {
-    // Load ảnh thật từ public/assets/images
     this.load.image('bacteria', '/assets/images/anhsauhai.jpg');
     this.load.image('gift', '/assets/images/anhsp.jpg');
     this.load.image('leaf-good', '/assets/images/anhladua.jpg');
     
+    // Nếu có ảnh upload, load nó vào Texture
+    if (this.userAvatarBase64) {
+      this.textures.addBase64('user-avatar', this.userAvatarBase64);
+    }
+
     this.createGraphics();
   }
 
@@ -35,150 +50,53 @@ class MenuScene extends Phaser.Scene {
   }
 
   create() {
-    const { width, height } = this.cameras.main;
-
-    this.add.rectangle(width / 2, height / 2, width, height, 0xE8F5E9);
-
-    const logoY = height * 0.25;
-    
-    const leaf1 = this.add.image(width / 2 - 30, logoY, 'pineapple-leaf');
-    const leaf2 = this.add.image(width / 2 + 30, logoY, 'pineapple-leaf');
-    leaf1.setTint(0x66BB6A);
-    leaf2.setTint(0x4CAF50);
-
-    const title = this.add.text(width / 2, logoY + 80, 'PineSmile', {
-      fontSize: '48px',
-      fontFamily: 'Arial, sans-serif',
-      color: '#2E7D32',
-      fontStyle: 'bold'
-    });
-    title.setOrigin(0.5);
-
-
-    const instructions = this.add.text(width / 2, height * 0.55, 
-      '🍃 Thu thập lá dứa tốt\n' +
-      '🎁 Nhận quà x5 điểm\n' +
-      '🦠 Tránh vi khuẩn\n\n' +
-      '👆 Vuốt trái/phải để di chuyển\n' +
-      '⚡ Mỗi 5 điểm = tăng tốc!',
-      {
-        fontSize: '18px',
-        fontFamily: 'Arial, sans-serif',
-        color: '#4CAF50',
-        align: 'center',
-        lineSpacing: 8
-      }
-    );
-    instructions.setOrigin(0.5);
-
-    const playButton = this.add.image(width / 2, height * 0.78, 'play-button');
-    playButton.setInteractive({ useHandCursor: true });
-
-    const playText = this.add.text(width / 2, height * 0.78, 'BẮT ĐẦU CHƠI', {
-      fontSize: '24px',
-      fontFamily: 'Arial, sans-serif',
-      color: '#FFFFFF',
-      fontStyle: 'bold'
-    });
-    playText.setOrigin(0.5);
-
-    playButton.on('pointerover', () => {
-      playButton.setTint(0x81C784);
-      playButton.setScale(1.05);
-    });
-
-    playButton.on('pointerout', () => {
-      playButton.clearTint();
-      playButton.setScale(1);
-    });
-
-    playButton.on('pointerdown', () => playButton.setScale(0.95));
-    playButton.on('pointerup', () => this.scene.start('GameScene'));
-
-    this.tweens.add({
-      targets: [leaf1, leaf2],
-      y: logoY - 10,
-      duration: 1500,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut'
-    });
+    // Chuyển ngay sang GameScene vì ta đã có màn hình Upload ở React
+    this.scene.start('GameScene');
   }
 }
 
 // GameScene - Màn hình chơi game
 class GameScene extends Phaser.Scene {
-  // === KHAI BÁO BIẾN ĐỂ FIX LỖI BUILD TYPESCRIPT ===
   player: any;
-  lanes: any[];
-  currentLane: number;
-  score: number;
-  lives: number;
-  items: any[];
-  gameSpeed: number;
-  baseSpeed: number;
-  combo: number;
-  isMoving: boolean;
-  swipeStart: { x: number, y: number } | null;
-  lastSpeedUpScore: number;
-  speedLevel: number;
+  lanes: any[] = [];
+  currentLane: number = 1;
+  score: number = 0;
+  lives: number = 3;
+  items: any[] = [];
+  gameSpeed: number = 200;
+  baseSpeed: number = 200;
+  combo: number = 0;
+  isMoving: boolean = false;
+  swipeStart: { x: number, y: number } | null = null;
+  lastSpeedUpScore: number = 0;
+  speedLevel: number = 1;
   
-  // Các biến UI
   scoreText: any;
   livesText: any;
   speedLevelText: any;
   comboText: any;
   spawnTimer: any;
-  // ==================================================
 
   constructor() {
     super({ key: 'GameScene' });
-    this.player = null;
-    this.lanes = [];
-    this.currentLane = 1;
-    this.score = 0;
-    this.lives = 3;
-    this.items = [];
-    this.gameSpeed = 200;
-    this.baseSpeed = 200;
-    this.combo = 0;
-    this.isMoving = false;
-    this.swipeStart = null;
-    this.lastSpeedUpScore = 0;
-    this.speedLevel = 1;
-  }
-
-  preload() {
-    // Load ảnh thật
-    this.load.image('bacteria', '/assets/images/anhsauhai.jpg');
-    this.load.image('gift', '/assets/images/anhsp.jpg');
-    this.load.image('leaf-good', '/assets/images/anhladua.jpg');
-    
-    this.createGameGraphics();
-  }
-
-  createGameGraphics() {
-    // Nhân vật
-    const playerG = this.add.graphics();
-    playerG.fillStyle(0xFFEB3B, 1);
-    playerG.fillCircle(25, 25, 25);
-    playerG.fillStyle(0x000000, 1);
-    playerG.fillCircle(15, 18, 3);
-    playerG.fillCircle(35, 18, 3);
-    playerG.lineStyle(3, 0x000000, 1);
-    playerG.arc(25, 25, 15, 0.2, Math.PI - 0.2);
-    playerG.strokePath();
-    playerG.generateTexture('player', 50, 50);
-    playerG.destroy();
   }
 
   create() {
+    this.items = [];
+    this.score = 0;
+    this.lives = 3;
+    this.gameSpeed = 200;
+    this.currentLane = 1;
+    this.isMoving = false;
+    this.combo = 0;
+
     const { width, height } = this.cameras.main;
 
     this.add.rectangle(width / 2, height / 2, width, height, 0xE8F5E9);
 
     // Đường chạy
     const laneWidth = width / 3;
+    this.lanes = [];
     for (let i = 0; i < 3; i++) {
       this.lanes.push({ x: laneWidth * i + laneWidth / 2, index: i });
     }
@@ -213,12 +131,52 @@ class GameScene extends Phaser.Scene {
       }
     });
 
-    // Người chơi
+    // === TẠO NGƯỜI CHƠI (CẬP NHẬT ẢNH THẬT) ===
     this.player = this.add.container(this.lanes[1].x, height - 100);
-    const sprite = this.add.image(0, 0, 'player');
-    this.player.add(sprite);
     this.player.setSize(50, 50);
 
+    if (this.textures.exists('user-avatar')) {
+      // 1. Tạo mask tròn
+      const maskShape = this.make.graphics({});
+      maskShape.fillCircle(0, 0, 25);
+      const mask = maskShape.createGeometryMask();
+
+      // 2. Tạo ảnh
+      const avatarSprite = this.add.image(0, 0, 'user-avatar');
+      
+      // 3. Tính scale để ảnh vừa khít 50x50
+      const scale = 50 / Math.min(avatarSprite.width, avatarSprite.height);
+      avatarSprite.setScale(scale);
+      
+      // 4. Áp dụng mask (lưu ý: mask tọa độ global nên cần update trong update())
+      avatarSprite.setMask(mask);
+      
+      this.player.add(avatarSprite);
+      
+      // Lưu tham chiếu mask để cập nhật vị trí
+      (this.player as any).avatarMask = maskShape;
+
+      // Viền tròn
+      const border = this.add.graphics();
+      border.lineStyle(3, 0x2E7D32, 1);
+      border.strokeCircle(0, 0, 26);
+      this.player.add(border);
+
+    } else {
+      // Fallback: Vẽ hình tròn vàng như cũ nếu không có ảnh
+      const playerG = this.add.graphics();
+      playerG.fillStyle(0xFFEB3B, 1);
+      playerG.fillCircle(0, 0, 25);
+      playerG.fillStyle(0x000000, 1);
+      playerG.fillCircle(-10, -7, 3); // Mắt trái
+      playerG.fillCircle(10, -7, 3);  // Mắt phải
+      playerG.lineStyle(3, 0x000000, 1);
+      playerG.arc(0, 0, 15, 0.2, Math.PI - 0.2); // Miệng
+      playerG.strokePath();
+      this.player.add(playerG);
+    }
+
+    // Glow effect
     const glow = this.add.circle(0, 0, 30, 0xFFFFFF, 0.2);
     this.player.add(glow);
     this.player.sendToBack(glow);
@@ -231,82 +189,51 @@ class GameScene extends Phaser.Scene {
       yoyo: true,
       repeat: -1
     });
+    // ==========================================
 
-    // UI - Sắp xếp lại để không chồng chéo
-    // Score ở góc trái trên
+    // UI
     this.scoreText = this.add.text(15, 15, '🍃 0', {
-      fontSize: '24px',
-      fontFamily: 'Arial, sans-serif',
-      color: '#2E7D32',
-      fontStyle: 'bold',
-      stroke: '#FFFFFF',
-      strokeThickness: 4,
-      backgroundColor: 'rgba(255, 255, 255, 0.3)',
-      padding: { x: 8, y: 4 }
+      fontSize: '24px', fontFamily: 'Arial, sans-serif', color: '#2E7D32', fontStyle: 'bold',
+      stroke: '#FFFFFF', strokeThickness: 4, backgroundColor: 'rgba(255, 255, 255, 0.3)', padding: { x: 8, y: 4 }
     });
 
-    // Lives ở góc phải trên
     this.livesText = this.add.text(width - 15, 15, '❤️❤️❤️', {
-      fontSize: '20px',
-      fontFamily: 'Arial, sans-serif',
-      backgroundColor: 'rgba(255, 255, 255, 0.3)',
-      padding: { x: 8, y: 4 }
+      fontSize: '20px', fontFamily: 'Arial, sans-serif', backgroundColor: 'rgba(255, 255, 255, 0.3)', padding: { x: 8, y: 4 }
     });
     this.livesText.setOrigin(1, 0);
 
-    // Speed Level ở giữa, dưới score và lives
     this.speedLevelText = this.add.text(width / 2, 55, 'Speed: 1x', {
-      fontSize: '18px',
-      fontFamily: 'Arial, sans-serif',
-      color: '#FF9800',
-      fontStyle: 'bold',
-      stroke: '#FFFFFF',
-      strokeThickness: 3,
-      backgroundColor: 'rgba(255, 255, 255, 0.3)',
-      padding: { x: 10, y: 4 }
+      fontSize: '18px', fontFamily: 'Arial, sans-serif', color: '#FF9800', fontStyle: 'bold',
+      stroke: '#FFFFFF', strokeThickness: 3, backgroundColor: 'rgba(255, 255, 255, 0.3)', padding: { x: 10, y: 4 }
     });
     this.speedLevelText.setOrigin(0.5, 0);
 
-    // Combo ở giữa màn hình
     this.comboText = this.add.text(width / 2, height / 2 - 50, '', {
-      fontSize: '28px',
-      fontFamily: 'Arial, sans-serif',
-      color: '#FF9800',
-      fontStyle: 'bold',
-      stroke: '#FFFFFF',
-      strokeThickness: 5
+      fontSize: '28px', fontFamily: 'Arial, sans-serif', color: '#FF9800', fontStyle: 'bold',
+      stroke: '#FFFFFF', strokeThickness: 5
     });
     this.comboText.setOrigin(0.5);
     this.comboText.setVisible(false);
 
     // Controls
-    this.input.keyboard!.on('keydown-LEFT', () => this.moveLeft());
-    this.input.keyboard!.on('keydown-RIGHT', () => this.moveRight());
-    this.input.keyboard!.on('keydown-A', () => this.moveLeft());
-    this.input.keyboard!.on('keydown-D', () => this.moveRight());
+    if(this.input.keyboard) {
+        this.input.keyboard.on('keydown-LEFT', () => this.moveLeft());
+        this.input.keyboard.on('keydown-RIGHT', () => this.moveRight());
+        this.input.keyboard.on('keydown-A', () => this.moveLeft());
+        this.input.keyboard.on('keydown-D', () => this.moveRight());
+    }
 
-    this.input.on('pointerdown', (pointer: any) => {
-      this.swipeStart = { x: pointer.x, y: pointer.y };
-    });
-
+    this.input.on('pointerdown', (pointer: any) => { this.swipeStart = { x: pointer.x, y: pointer.y }; });
     this.input.on('pointerup', (pointer: any) => {
       if (this.swipeStart) {
         const diffX = pointer.x - this.swipeStart.x;
         const diffY = Math.abs(pointer.y - this.swipeStart.y);
-        if (Math.abs(diffX) > 50 && diffY < 100) {
-          diffX > 0 ? this.moveRight() : this.moveLeft();
-        }
+        if (Math.abs(diffX) > 30 && diffY < 100) { diffX > 0 ? this.moveRight() : this.moveLeft(); }
         this.swipeStart = null;
       }
     });
 
-    // Spawn items
-    this.spawnTimer = this.time.addEvent({
-      delay: 1500,
-      callback: this.spawnItem,
-      callbackScope: this,
-      loop: true
-    });
+    this.spawnTimer = this.time.addEvent({ delay: 1500, callback: this.spawnItem, callbackScope: this, loop: true });
   }
 
   moveLeft() {
@@ -314,13 +241,11 @@ class GameScene extends Phaser.Scene {
     this.currentLane--;
     this.moveToLane();
   }
-
   moveRight() {
     if (this.isMoving || this.currentLane === 2) return;
     this.currentLane++;
     this.moveToLane();
   }
-
   moveToLane() {
     this.isMoving = true;
     this.tweens.add({
@@ -334,20 +259,12 @@ class GameScene extends Phaser.Scene {
 
   spawnItem() {
     const laneIndex = Phaser.Math.Between(0, 2);
-    const x = this.lanes[laneIndex].x;
-    
     const rand = Math.random();
-    let itemType;
-    if (rand < 0.1) itemType = 'gift';
-    else if (rand < 0.65) itemType = 'leaf-good';
-    else itemType = 'bacteria';
-
-    const item = this.add.container(x, -50);
+    let itemType = rand < 0.1 ? 'gift' : (rand < 0.65 ? 'leaf-good' : 'bacteria');
     
-    // Sử dụng ảnh thật, resize cho phù hợp
+    const item = this.add.container(this.lanes[laneIndex].x, -50);
     const sprite = this.add.image(0, 0, itemType);
-    sprite.setDisplaySize(50, 50); // Resize ảnh về kích thước chuẩn
-    
+    sprite.setDisplaySize(50, 50);
     item.add(sprite);
     item.setData('type', itemType);
     item.setData('lane', laneIndex);
@@ -357,89 +274,55 @@ class GameScene extends Phaser.Scene {
       const glow = this.add.circle(0, 0, 35, 0xFFC107, 0.3);
       item.add(glow);
       item.sendToBack(glow);
-      this.tweens.add({
-        targets: glow,
-        scale: 1.5,
-        alpha: 0,
-        duration: 800,
-        yoyo: true,
-        repeat: -1
-      });
+      this.tweens.add({ targets: glow, scale: 1.5, alpha: 0, duration: 800, yoyo: true, repeat: -1 });
     }
-
     this.items.push(item);
   }
 
   checkSpeedIncrease() {
-    // Tăng tốc mỗi khi đạt bội số của 5
     const currentMilestone = Math.floor(this.score / 5);
     const lastMilestone = Math.floor(this.lastSpeedUpScore / 5);
-
     if (currentMilestone > lastMilestone && this.score >= 5) {
       this.speedLevel = currentMilestone + 1;
-      this.gameSpeed = this.baseSpeed + (currentMilestone * 30); // Tăng 30 mỗi 5 điểm
-      
-      // Giảm spawn delay
-      if (this.spawnTimer) {
-        this.spawnTimer.delay = Math.max(800, 1500 - (currentMilestone * 100));
-      }
-
-      // Cập nhật UI
+      this.gameSpeed = this.baseSpeed + (currentMilestone * 30);
+      if (this.spawnTimer) this.spawnTimer.delay = Math.max(800, 1500 - (currentMilestone * 100));
       this.speedLevelText.setText(`Speed: ${this.speedLevel}x`);
-      
-      // Hiệu ứng speed up
       this.showSpeedUpEffect();
-      
       this.lastSpeedUpScore = this.score;
     }
   }
 
   showSpeedUpEffect() {
     const { width, height } = this.cameras.main;
-    
     const speedUpText = this.add.text(width / 2, height / 2, '⚡ SPEED UP! ⚡', {
-      fontSize: '36px',
-      fontFamily: 'Arial, sans-serif',
-      color: '#FF9800',
-      fontStyle: 'bold',
-      stroke: '#FFFFFF',
-      strokeThickness: 6
+      fontSize: '36px', fontFamily: 'Arial, sans-serif', color: '#FF9800', fontStyle: 'bold', stroke: '#FFFFFF', strokeThickness: 6
     });
     speedUpText.setOrigin(0.5);
-
     this.tweens.add({
-      targets: speedUpText,
-      scale: 1.5,
-      alpha: 0,
-      duration: 1000,
-      ease: 'Power2',
-      onComplete: () => speedUpText.destroy()
+      targets: speedUpText, scale: 1.5, alpha: 0, duration: 1000, ease: 'Power2', onComplete: () => speedUpText.destroy()
     });
-
-    // Camera flash
     this.cameras.main.flash(300, 255, 152, 0, false);
   }
 
   update() {
-    const { height } = this.cameras.main;
+    // Cập nhật vị trí Mask để nó đi theo Player
+    if ((this.player as any).avatarMask) {
+        (this.player as any).avatarMask.x = this.player.x;
+        (this.player as any).avatarMask.y = this.player.y;
+    }
 
+    const { height } = this.cameras.main;
     for (let i = this.items.length - 1; i >= 0; i--) {
       const item = this.items[i];
       item.y += this.gameSpeed * (1 / 60);
 
-      if (!item.getData('collected') && 
-          Math.abs(item.y - this.player.y) < 40 &&
-          item.getData('lane') === this.currentLane) {
+      if (!item.getData('collected') && Math.abs(item.y - this.player.y) < 40 && item.getData('lane') === this.currentLane) {
         this.collectItem(item);
       }
-
-      if (!item.getData('collected') && 
-          item.y > this.player.y + 60 &&
-          item.getData('type') === 'leaf-good') {
+      if (!item.getData('collected') && item.y > this.player.y + 60 && item.getData('type') === 'leaf-good') {
         this.loseLife();
         item.setData('collected', true);
       }
-
       if (item.y > height + 50) {
         item.destroy();
         this.items.splice(i, 1);
@@ -450,7 +333,6 @@ class GameScene extends Phaser.Scene {
   collectItem(item: any) {
     const type = item.getData('type');
     item.setData('collected', true);
-
     if (type === 'bacteria') {
       this.loseLife();
       this.combo = 0;
@@ -468,51 +350,26 @@ class GameScene extends Phaser.Scene {
       this.updateCombo();
       this.checkSpeedIncrease();
     }
-
     this.scoreText.setText('🍃 ' + this.score);
     item.destroy();
-
-    const circle = this.add.circle(item.x, item.y, 30, 
-      type === 'bacteria' ? 0xFF0000 : 0x4CAF50, 0.5);
-    this.tweens.add({
-      targets: circle,
-      scale: 2,
-      alpha: 0,
-      duration: 300,
-      onComplete: () => circle.destroy()
-    });
+    
+    const circle = this.add.circle(item.x, item.y, 30, type === 'bacteria' ? 0xFF0000 : 0x4CAF50, 0.5);
+    this.tweens.add({ targets: circle, scale: 2, alpha: 0, duration: 300, onComplete: () => circle.destroy() });
   }
 
   showEffect(x: number, y: number, text: string, color: number) {
     const effect = this.add.text(x, y, text, {
-      fontSize: '28px',
-      fontFamily: 'Arial, sans-serif',
-      color: '#' + color.toString(16),
-      fontStyle: 'bold',
-      stroke: '#FFFFFF',
-      strokeThickness: 4
+      fontSize: '28px', fontFamily: 'Arial, sans-serif', color: '#' + color.toString(16), fontStyle: 'bold', stroke: '#FFFFFF', strokeThickness: 4
     });
     effect.setOrigin(0.5);
-
-    this.tweens.add({
-      targets: effect,
-      y: y - 60,
-      alpha: 0,
-      duration: 800,
-      onComplete: () => effect.destroy()
-    });
+    this.tweens.add({ targets: effect, y: y - 60, alpha: 0, duration: 800, onComplete: () => effect.destroy() });
   }
 
   updateCombo() {
     if (this.combo >= 3) {
       this.comboText.setText(`COMBO x${this.combo}! 🔥`);
       this.comboText.setVisible(true);
-      this.tweens.add({
-        targets: this.comboText,
-        scale: 1.2,
-        duration: 200,
-        yoyo: true
-      });
+      this.tweens.add({ targets: this.comboText, scale: 1.2, duration: 200, yoyo: true });
     } else {
       this.comboText.setVisible(false);
     }
@@ -522,13 +379,9 @@ class GameScene extends Phaser.Scene {
     this.lives--;
     this.livesText.setText('❤️'.repeat(this.lives));
     this.cameras.main.shake(300, 0.01);
-
     if (this.lives <= 0) {
       this.scene.pause();
-      const event = new CustomEvent('gameOver', {
-        detail: { score: this.score }
-      });
-      window.dispatchEvent(event);
+      window.dispatchEvent(new CustomEvent('gameOver', { detail: { score: this.score } }));
     }
   }
 }
@@ -538,77 +391,85 @@ class GameScene extends Phaser.Scene {
 const GreenSmileGame = () => {
   const gameContainer = useRef<HTMLDivElement>(null);
   const phaserGame = useRef<Phaser.Game | null>(null);
-  const [showForm, setShowForm] = useState(false);
+  
+  // State quản lý luồng
+  const [step, setStep] = useState<'upload' | 'game' | 'result'>('upload');
+  const [avatar, setAvatar] = useState<string | null>(null);
   const [gameResult, setGameResult] = useState<{ score: number, timestamp: number } | null>(null);
+  
+  // State Form & Restart Fix
   const [formData, setFormData] = useState({ name: '', phone: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [sessionId, setSessionId] = useState(0); // Dùng để reset game hoàn toàn khi chơi lại
+
+  // Xử lý upload ảnh
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAvatar(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   useEffect(() => {
-    if (gameContainer.current && !phaserGame.current) {
-      const config = {
+    // Chỉ khởi tạo game khi ở bước 'game' và đã có container
+    if (step === 'game' && gameContainer.current) {
+      // Cleanup game cũ
+      if (phaserGame.current) {
+        phaserGame.current.destroy(true);
+      }
+
+      const config: Phaser.Types.Core.GameConfig = {
         type: Phaser.AUTO,
         parent: gameContainer.current,
         width: 375,
         height: 667,
         backgroundColor: '#E8F5E9',
-        physics: {
-          default: 'arcade',
-          arcade: {
-            gravity: { x: 0, y: 0 },
-            debug: false
-          }
-        },
+        physics: { default: 'arcade', arcade: { gravity: { x: 0, y: 0 }, debug: false } },
         scene: [MenuScene, GameScene],
-        scale: {
-          mode: Phaser.Scale.FIT,
-          autoCenter: Phaser.Scale.CENTER_BOTH
-        }
+        scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH }
       };
 
       phaserGame.current = new Phaser.Game(config);
 
+      // Truyền avatar vào game khi start
+      if (avatar) {
+        phaserGame.current.scene.start('MenuScene', { avatar });
+      }
+
       const handleGameOver = (event: any) => {
-        setGameResult({
-          score: event.detail.score,
-          timestamp: Date.now()
-        });
-        setShowForm(true);
+        setGameResult({ score: event.detail.score, timestamp: Date.now() });
+        setStep('result'); // Chuyển sang màn hình kết quả
       };
 
       window.addEventListener('gameOver', handleGameOver);
 
       return () => {
         window.removeEventListener('gameOver', handleGameOver);
+        if (phaserGame.current) {
+            phaserGame.current.destroy(true);
+            phaserGame.current = null;
+        }
       };
     }
+  }, [step, sessionId]); // Restart khi sessionId thay đổi
 
-    return () => {
-      if (phaserGame.current) {
-        phaserGame.current.destroy(true);
-        phaserGame.current = null;
-      }
-    };
-  }, []);
-
+  // Gửi dữ liệu lên Google Sheet (Apps Script)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
     try {
-      // THAY ĐỔI URL VÀ ENTRY IDs Ở ĐÂY
-      const formUrl = 'https://docs.google.com/forms/d/e/YOUR_FORM_ID/formResponse';
+      // URL Google Apps Script
+      const currentScore = gameResult?.score || 0;
+      const url = `${GOOGLE_SCRIPT_URL}?name=${encodeURIComponent(formData.name)}&phone=${encodeURIComponent(formData.phone)}&score=${currentScore}`;
       
-      const formDataToSend = new FormData();
-      formDataToSend.append('entry.YOUR_NAME_ENTRY_ID', formData.name);
-      formDataToSend.append('entry.YOUR_PHONE_ENTRY_ID', formData.phone);
-      formDataToSend.append('entry.YOUR_SCORE_ENTRY_ID', gameResult?.score.toString() || '0');
-
-      await fetch(formUrl, {
-        method: 'POST',
-        mode: 'no-cors',
-        body: formDataToSend
-      });
+      // Gửi request (no-cors)
+      await fetch(url, { method: 'POST', mode: 'no-cors' });
 
       setSubmitSuccess(true);
       setTimeout(() => {
@@ -622,32 +483,63 @@ const GreenSmileGame = () => {
   };
 
   const handlePlayAgain = () => {
-    setShowForm(false);
     setSubmitSuccess(false);
     setFormData({ name: '', phone: '' });
     setIsSubmitting(false);
-    
-    if (phaserGame.current) {
-      // Stop tất cả scenes
-      const scenes = phaserGame.current.scene.getScenes(true);
-      scenes.forEach(scene => {
-        if (scene.scene.isActive()) {
-          scene.scene.stop();
-        }
-      });
-      
-      // Restart MenuScene
-      setTimeout(() => {
-        phaserGame.current?.scene.start('MenuScene');
-      }, 100);
-    }
+    setSessionId(prev => prev + 1); // Tăng ID để reset game sạch sẽ
+    setStep('game'); // Quay lại game ngay (bỏ qua bước chụp ảnh lại, dùng ảnh cũ)
   };
+
+  const handleRetakePhoto = () => {
+     setAvatar(null);
+     setStep('upload');
+  }
 
   return (
     <div style={styles.wrapper}>
-      <div ref={gameContainer} style={styles.container} />
       
-      {showForm && (
+      {/* 1. MÀN HÌNH CHỤP ẢNH (MỚI THÊM) */}
+      {step === 'upload' && (
+         <div style={styles.uploadContainer}>
+             <div style={styles.smileIcon}>📸</div>
+             <h2 style={styles.title}>Chào mừng bạn!</h2>
+             <p style={{...styles.tagline, marginBottom: '20px'}}>Hãy chụp ảnh để làm nhân vật trong game.</p>
+             
+             {avatar ? (
+                 <div style={{textAlign: 'center'}}>
+                     <img src={avatar} alt="Preview" style={styles.avatarPreview} />
+                     <div style={styles.formActions}>
+                        <button onClick={() => setStep('game')} style={styles.btnSubmit}>
+                            VÀO GAME ➤
+                        </button>
+                        <button onClick={() => setAvatar(null)} style={styles.btnSecondary}>
+                            Chọn lại
+                        </button>
+                     </div>
+                 </div>
+             ) : (
+                <>
+                    <label htmlFor="file-upload" style={{...styles.btnSubmit, display: 'inline-block', textAlign: 'center'}}>
+                         📷 Mở Camera / Chọn Ảnh
+                    </label>
+                    <input 
+                        id="file-upload"
+                        type="file"
+                        accept="image/*"
+                        capture="user" // Mở camera trước
+                        onChange={handleImageUpload}
+                        style={{display: 'none'}}
+                    />
+                </>
+             )}
+         </div>
+      )}
+
+      {/* 2. KHUNG GAME */}
+      {step === 'game' && <div ref={gameContainer} style={styles.container} />}
+      
+      {/* 3. MÀN HÌNH KẾT QUẢ & FORM (GIỮ NGUYÊN STYLE CŨ) */}
+      {step === 'result' && (
         <div style={styles.overlay}>
           <div style={styles.formContainer}>
             {!submitSuccess ? (
@@ -704,6 +596,13 @@ const GreenSmileGame = () => {
                     >
                       Chơi lại
                     </button>
+                    <button 
+                      type="button" 
+                      onClick={handleRetakePhoto} 
+                      style={{...styles.btnSecondary, marginTop: '5px', fontSize: '14px', padding: '10px'}}
+                    >
+                      Chụp lại ảnh khác
+                    </button>
                   </div>
                 </form>
               </>
@@ -722,7 +621,7 @@ const GreenSmileGame = () => {
   );
 };
 
-// Styles
+// Styles (Giữ nguyên style cũ + thêm một chút cho phần upload)
 const styles: { [key: string]: React.CSSProperties } = {
   wrapper: {
     position: 'relative',
@@ -739,6 +638,16 @@ const styles: { [key: string]: React.CSSProperties } = {
     width: '100%',
     aspectRatio: '375 / 667'
   },
+  // Style mới cho màn hình Upload
+  uploadContainer: {
+    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+    height: '100%', padding: '20px', aspectRatio: '375 / 667', textAlign: 'center'
+  },
+  avatarPreview: {
+    width: '120px', height: '120px', borderRadius: '50%', objectFit: 'cover',
+    border: '4px solid #4CAF50', marginBottom: '20px'
+  },
+  // Style cũ giữ nguyên
   overlay: {
     position: 'fixed',
     top: 0,
