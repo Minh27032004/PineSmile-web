@@ -124,16 +124,17 @@ class GameScene extends Phaser.Scene {
     this.reachedSpinThreshold = false;
 
     // 🔧 FIX: Khôi phục audio context (Browser autoplay policy)
+    const soundManager = this.sound as Phaser.Sound.WebAudioSoundManager;
     if (this.sound.locked) {
       this.sound.once('unlocked', () => {
-        if (this.sound.context.state === 'suspended') {
-          this.sound.context.resume();
+        if (soundManager.context && soundManager.context.state === 'suspended') {
+          soundManager.context.resume();
         }
         this.playBackgroundMusic();
       });
     } else {
-      if (this.sound.context.state === 'suspended') {
-        this.sound.context.resume();
+      if (soundManager.context && soundManager.context.state === 'suspended') {
+        soundManager.context.resume();
       }
       this.playBackgroundMusic();
     }
