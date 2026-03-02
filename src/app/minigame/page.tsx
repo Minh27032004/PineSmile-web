@@ -68,9 +68,12 @@ export default function MinigamePage() {
                 <span className="mr-2">⚡</span>
                 <span>Mỗi 5 điểm sẽ tăng tốc độ!</span>
               </li>
+              <li className="flex items-start">
+                <span className="mr-2">🎡</span>
+                <span className="font-bold">Đạt 100 điểm để quay vòng may mắn! 🎁</span>
+              </li>
             </ul>
-          </div>
-
+          </div>   
           {/* Footer */}
           <div className="text-center mt-6 space-y-2">
             <p className="text-green-600 text-sm">
